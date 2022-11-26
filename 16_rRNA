@@ -1,6 +1,10 @@
 library(dada2); packageVersion("dada2")
-path <- "~/MiSeq_SOP" # CHANGE ME to the directory containing the fastq files after unzipping.
-list.files(path)
+library(ShortRead); packageVersion("ShortRead")
+library(phyloseq); packageVersion("phyloseq")
+library(Biostrings); packageVersion("Biostrings")
+
+#path <- "~/MiSeq_SOP" # CHANGE ME to the directory containing the fastq files after unzipping.
+#list.files(path)
 
 path <- "~/Desktop/sueyoshi/for_r/test_data/221103-0503M_Chikae_Tatsumi_7300_Combined/fastq_Lane1/for_16s/for_gz" # CHANGE ME to the directory containing the fastq files after unzipping.
 list.files(path)
@@ -8,6 +12,7 @@ list.files(path)
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq and SAMPLENAME_R2_001.fastq
 fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
+
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 
@@ -25,10 +30,12 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 head(out)
 
+#learn the error rates
 errF <- learnErrors(filtFs, multithread=TRUE)
 errR <- learnErrors(filtRs, multithread=TRUE)
 plotErrors(errF, nominalQ=TRUE)
 
+#sample inference
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
 dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 
@@ -55,6 +62,7 @@ track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, 
 colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
 rownames(track) <- sample.names
 head(track)
+write.table(track,file="track.txt")
 
 #assign taxnomy
 taxa <- assignTaxonomy(seqtab.nochim, "~/Desktop/sueyoshi/for_r/16srRNA_tuterial/silva_nr_v132_train_set.fa.gz", multithread=TRUE)
@@ -62,30 +70,33 @@ taxa.print <- taxa # Removing sequence rownames for display only
 rownames(taxa.print) <- NULL
 head(taxa.print)
 
-#evaluate accuracy
-unqs.mock <- seqtab.nochim["Mock",]
-unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
-cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
+write.table(taxa,file="taxonomy.txt")
+write.table(seqtab.nochim,file="seqtabnochim.txt")
 
-mock.ref <- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))
-match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
-cat("Of those,", sum(match.ref), "were exact matches to the expected reference sequences.\n")
+#evaluate accuracy
+#unqs.mock <- seqtab.nochim["Mock",]
+#unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
+#cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
+
+#mock.ref <- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))
+#match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
+#cat("Of those,", sum(match.ref), "were exact matches to the expected reference sequences.\n")
 
 #handoff to phyloseq
-library(phyloseq); packageVersion("phyloseq")
-library(Biostrings); packageVersion("Biostrings")
-library(ggplot2); packageVersion("ggplot2")
-theme_set(theme_bw())
+#library(phyloseq); packageVersion("phyloseq")
+#library(Biostrings); packageVersion("Biostrings")
+#library(ggplot2); packageVersion("ggplot2")
+#theme_set(theme_bw())
 
 samples.out <- rownames(seqtab.nochim)
-subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
-gender <- substr(subject,1,1)
-subject <- substr(subject,2,999)
-day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2))
-samdf <- data.frame(Subject=subject, Gender=gender, Day=day)
-samdf$When <- "Early"
-samdf$When[samdf$Day>100] <- "Late"
-rownames(samdf) <- samples.out
+#subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
+#gender <- substr(subject,1,1)
+#subject <- substr(subject,2,999)
+#day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2))
+#samdf <- data.frame(Subject=subject, Gender=gender, Day=day)
+#samdf$When <- "Early"
+#samdf$When[samdf$Day>100] <- "Late"
+#rownames(samdf) <- samples.out
 
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                sample_data(samdf), 
