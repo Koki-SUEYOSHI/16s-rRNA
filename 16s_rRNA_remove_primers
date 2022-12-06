@@ -6,7 +6,7 @@ packageVersion("ShortRead")
 library(Biostrings)
 packageVersion("Biostrings")
 
-path <- "~/Desktop/sueyoshi/for_r/ITS_pipeline/Amplicon_sequencing_library_2"  ## CHANGE ME to the directory containing the fastq files.
+path <- "~/Desktop/sueyoshi/for_r/~"  ## CHANGE ME to the directory containing the fastq files.
 list.files(path)
 
 fnFs <- sort(list.files(path, pattern = "_R1_001.fastq.gz", full.names = TRUE))
